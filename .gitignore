@@ -1,0 +1,7 @@
+*.json
+.idea/
+.vscode/
+glove.840B.300d.txt
+__pycache__
+*.pkl
+*.bin
