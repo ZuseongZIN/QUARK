@@ -176,10 +176,9 @@ def prepare_datas(preprocessed_file, data_category):
     print("Saving {}_data".format(data_category))
     with open(data_category+"_data.json", "w") as fh:
         json.dump(prepared_datas, fh)
-    
-    
 
-def train_and_evaluate_ras_model():
+  # %%  
+def train_and_evaluate_ras_model(train_dataset, dev_dataset):
     batch_size = 3
     num_epochs= 4
     MAX_batch_token_size = 5625
@@ -206,11 +205,13 @@ def train_and_evaluate_ras_model():
     return 0
     '''
     
+    '''
     print("Loading training datasets..")
     train_dataset = json.load(open("Training_data.json", 'r'))
 
     print("Loading dev datasets..")
     dev_dataset = json.load(open("Dev_data.json"))
+    '''
 
     sentence_scorer_model = BertForSequenceClassification.from_pretrained(
         "bert-base-cased",
@@ -283,9 +284,13 @@ def train_and_evaluate_ras_model():
                 b_segment_ids = torch.Tensor(segment_ids[i* train_size:min((i+1)*train_size, num_elem)]).cuda().long()
                 b_attention_masks = torch.Tensor(attention_masks[i* train_size:min((i+1)*train_size, num_elem)]).cuda().long()
                 b_labels = torch.Tensor(labels[i* train_size:min((i+1)*train_size, num_elem)]).cuda().long()
-                loss, logits = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)
-                print("error point!")
-                print(loss, accumulation_steps)
+                outputs = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)
+                #print("error point!")
+                #print(outputs.logits.detach().cpu().numpy())
+                #print(outputs)
+                loss = outputs.loss
+                logits = outputs.logits
+
                 loss = loss / accumulation_steps
                 total_train_loss += loss.item()
                 loss.backward()
@@ -346,8 +351,10 @@ def train_and_evaluate_ras_model():
             b_labels = torch.Tensor(labels).cuda().long()
 
             with torch.no_grad():
-                loss, logits = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)        
+                outputs = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)        
             
+            loss = outputs.loss
+            logits = outputs.logits
             total_eval_loss += loss.item()
 
             logits = logits.detach().cpu().numpy()
@@ -375,15 +382,24 @@ def train_and_evaluate_ras_model():
             }
         )
 
-    #Save the training stats
-    print("Saving training stats...")
-    with open("Training_stats_ras.json", "w") as fh:
-        json.dump(training_stats, fh)
+      #Save the training stats
+        print("Saving training stats...")
+        with open("Training_stats_ras.json", "w") as fh:
+          json.dump(training_stats, fh)
 
-    # Save the fine-tuned model
-    print("Saving the fine-tuned model..")
-    sentence_scorer_model.save_pretrained('./model/ras/')
-    print("Training complete!")
+        # Save the fine-tuned model
+        print("Saving the fine-tuned model..")
+        sentence_scorer_model.save_pretrained('./model/ras/')
+        print("Training complete!")
 
-train_and_evaluate_ras_model()
 
+
+# %% 
+dev_data = json.load(open("Dev_data.json", 'r'))
+#dev_data_wa = json.load(open("Dev_data_wa.json", 'r'))
+
+training_data = json.load(open("short_training_data.json", 'r'))
+#training_data_wa = json.load(open("short_training_data_wa.json", 'r'))
+# %%
+train_and_evaluate_ras_model(training_data, dev_data)
+# %%

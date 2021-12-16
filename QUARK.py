@@ -74,7 +74,9 @@ class Quark(nn.Module):
         
 
         with torch.no_grad():
-            start_scores, end_scores = QA_model(input_ids = b_inputs_ids, attention_mask=b_attention_masks, token_type_ids=b_segment_ids)
+            outputs = QA_model(input_ids = b_inputs_ids, attention_mask=b_attention_masks, token_type_ids=b_segment_ids)
+            start_scores = outputs.start_logits
+            end_scores = outputs.end_logits
 
         start_tokens_idxs, end_tokens_idxs = find_best_answer(start_scores, end_scores)
 

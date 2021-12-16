@@ -230,6 +230,8 @@ def find_best_answer(start_scores, end_scores):
 
 
 def train_and_evaluate_QA_module():
+
+    
     print("Loading tokenizer for sentence scoring module..")
     ss_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
     print("Loading tokenizer for question answering module..")
@@ -240,11 +242,30 @@ def train_and_evaluate_QA_module():
     rnas_model.cuda()
     rnas_model.eval()
 
+    '''
+
     print("Preparing training data..")
     prepare_file_for_qa("hotpot_train_v1.1.json", "Training", rnas_model, ss_tokenizer, qa_tokenizer)
     print("Preparing dev data..")
     prepare_file_for_qa("hotpot_dev_distractor_v1.json", "Dev", rnas_model, ss_tokenizer, qa_tokenizer)
+    '''
 
+    '''
+    print("Loading training datasets..")
+    training_data = json.load(open("Training_data_for_qa.json", 'r'))
+    
+    randomlist = random.sample(range(0,90447), k = 7500*5)
+
+    tmp_training_data = []
+
+    for i in randomlist:
+        tmp_training_data.append(training_data[i])
+
+    file_path1 = "./short_Training_data_for_qa"
+
+    with open(file_path1, 'w') as outfile:
+        json.dump(tmp_training_data, outfile)
+    '''
     rnas_model.cpu()
 
     print("Loading training datasets..")
@@ -259,7 +280,7 @@ def train_and_evaluate_QA_module():
     QA_model.cuda()
 
     batch_size = 4
-    num_epochs = 3
+    num_epochs = 5
     optimizer = optim.Adam(QA_model.parameters(), lr=1e-5, weight_decay=0.01)
     total_training_steps = len(train_dataset) // batch_size if len(train_dataset) % batch_size ==0 else (len(train_dataset) // batch_size)+1
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps= total_training_steps//10, num_training_steps=total_training_steps)
@@ -301,7 +322,12 @@ def train_and_evaluate_QA_module():
             b_end_positions = torch.Tensor(end_positions).cuda().long()
 
             QA_model.zero_grad()
-            loss, start_scores, end_scores = QA_model(input_ids = b_inputs_ids, attention_mask=b_attention_masks, token_type_ids=b_segment_ids, start_positions = b_start_positions, end_positions = b_end_positions)
+            outputs = QA_model(input_ids = b_inputs_ids, attention_mask=b_attention_masks, token_type_ids=b_segment_ids, start_positions = b_start_positions, end_positions = b_end_positions)
+            #loss, start_scores, end_scores
+            loss = outputs.loss
+            start_scores = outputs.start_logits
+            end_scores = outputs.end_logits
+
             total_train_loss += loss.item()
             
             loss.backward()
@@ -368,7 +394,11 @@ def train_and_evaluate_QA_module():
             b_end_positions = torch.Tensor(end_positions).cuda().long()
 
             with torch.no_grad():
-                loss, start_scores, end_scores = QA_model(input_ids = b_inputs_ids, attention_mask=b_attention_masks, token_type_ids=b_segment_ids, start_positions = b_start_positions, end_positions = b_end_positions)
+                outputs = QA_model(input_ids = b_inputs_ids, attention_mask=b_attention_masks, token_type_ids=b_segment_ids, start_positions = b_start_positions, end_positions = b_end_positions)
+                loss = outputs.loss
+                start_scores = outputs.start_logits
+                end_scores = outputs.end_logits
+
 
             total_eval_loss += loss.item()
 
@@ -427,7 +457,7 @@ def train_and_evaluate_QA_module():
     QA_model.save_pretrained('./model/qa_bert_base/')
     print("Training complete!")
 
-train_and_evaluate_QA_module()
+#train_and_evaluate_QA_module()
 
 
 

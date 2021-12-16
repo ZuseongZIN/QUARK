@@ -12,12 +12,16 @@ def predict(data_source, prediction_file):
     dataset = json.load(open(data_source))
 
     print("Loading rnas, ras, QA model and tokenizer..")
+    #device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu") # 디바이스 설정
+    #print(device)
+
     rnas_model = BertForSequenceClassification.from_pretrained("./model/rnas")
     ras_model = BertForSequenceClassification.from_pretrained("./model/ras/")
-    QA_model = AutoModelForQuestionAnswering.from_pretrained("./model/qa/")
+    QA_model = AutoModelForQuestionAnswering.from_pretrained("./model/qa_bert_base/")
     ss_tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
     qa_tokenizer = AutoTokenizer.from_pretrained("SpanBERT/spanbert-base-cased")
 
+    
     rnas_model.cuda()
     rnas_model.eval()
     ras_model.cuda()

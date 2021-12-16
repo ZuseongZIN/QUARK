@@ -8,7 +8,8 @@ import torch.optim as optim
 import numpy as np
 from joblib import Parallel, delayed
 from torch.utils.data import DataLoader
-from transformers import BertTokenizer, BertModel, BertForSequenceClassification, get_linear_schedule_with_warmup
+from transformers import BertTokenizer, BertModel, get_linear_schedule_with_warmup
+from transformerslocals.src.transformers.models.bert.modeling_bert import BertForSequenceClassification
 from util import batch, flat_accuracy
 import pickle
 
@@ -191,6 +192,8 @@ def train_and_evaluate_rnas_model():
 
     print("Loading dev datasets..")
     dev_dataset = json.load(open("Dev_data_wa.json"))
+
+
     
     sentence_scorer_model = BertForSequenceClassification.from_pretrained(
         "bert-base-cased",
@@ -262,7 +265,10 @@ def train_and_evaluate_rnas_model():
                 b_segment_ids = torch.Tensor(segment_ids[i* train_size:min((i+1)*train_size, num_elem)]).cuda().long()
                 b_attention_masks = torch.Tensor(attention_masks[i* train_size:min((i+1)*train_size, num_elem)]).cuda().long()
                 b_labels = torch.Tensor(labels[i* train_size:min((i+1)*train_size, num_elem)]).cuda().long()
-                loss, logits = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)
+                outputs = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)
+                loss = outputs.loss
+                logits = outputs.logits
+
                 loss = loss / accumulation_steps
                 total_train_loss += loss.item()
                 loss.backward()
@@ -323,8 +329,10 @@ def train_and_evaluate_rnas_model():
             b_labels = torch.Tensor(labels).cuda().long()
 
             with torch.no_grad():
-                loss, logits = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)        
+                outputs = sentence_scorer_model(input_ids = b_inputs_ids, token_type_ids=b_segment_ids, attention_mask=b_attention_masks, labels=b_labels)        
             
+            loss = outputs.loss
+            logits = outputs.logits
             total_eval_loss += loss.item()
 
             logits = logits.detach().cpu().numpy()
